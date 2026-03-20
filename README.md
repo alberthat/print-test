@@ -1,29 +1,28 @@
-# Phomemo Canvas Print (Jetpack Compose)
+# Phomemo Label Creator (T02)
 
-This Android Studio project renders a label preview using Jetpack Compose `Canvas` and sends it directly to a paired Phomemo printer over Bluetooth (no external app handoff).
+This app is now a **label editor** for Phomemo T02-style native Bluetooth printing.
 
-## Print target
+## Core features
 
-- Physical label size: **50 mm x 30 mm**
-- Target resolution: **200 dpi**
-- Output bitmap size: **394 x 236 px** (rounded from 393.7 x 236.2)
-
-## Native T02 printing approach
-
-The app performs native Bluetooth printing by:
-
-1. Finding a paired Bluetooth device with a likely Phomemo/T02 name.
-2. Opening an RFCOMM socket using the standard SPP UUID.
-3. Converting the label bitmap to 1-bit monochrome raster bytes.
-4. Sending ESC/POS raster command bytes (`GS v 0`) directly to the printer.
-
-## Usage
-
-1. Pair your Phomemo T02 in Android Bluetooth settings.
-2. Open this app and tap **Print to Phomemo T02**.
-3. Grant Bluetooth permission (Android 12+) if prompted.
+- Full-width label canvas at native T02-style width (`48mm`, `203dpi`).
+- User-controlled label length (`20mm` to `120mm`).
+- Add and edit objects:
+  - Text (editable content + switchable font family)
+  - Clipart symbols
+  - QR codes
+  - Images (picked from gallery; editor placeholder + export outline)
+- Object transforms after insertion:
+  - Move (drag)
+  - Resize (width/height sliders)
+  - Rotate (rotation slider)
+- Pinch-zoom in editor mode.
+- Save/export:
+  - Native `.phlabel` JSON file
+  - PNG export
+  - SVG export
+- Native print over Bluetooth RFCOMM/ESC-POS raster, banded/chunked for reliability.
 
 ## Notes
 
-- This implementation intentionally avoids launching the Phomemo mobile app.
-- If your specific T02 firmware expects a different command framing than ESC/POS raster mode, further protocol tuning may be needed.
+- Pair the T02 printer in Android Bluetooth settings first.
+- Android 12+ requires Bluetooth runtime permissions.

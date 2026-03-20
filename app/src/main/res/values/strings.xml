@@ -11,4 +11,6 @@
     <string name="no_printer_found">No paired Phomemo/T02 printer found.</string>
     <string name="print_sent">Print job sent to %1$s.</string>
     <string name="print_failed">Native print failed: %1$s</string>
+    <string name="editor_title">Phomemo Label Editor</string>
+    <string name="label_length_mm">Label length: %1$d mm</string>
 </resources>
