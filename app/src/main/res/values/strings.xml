@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Phomemo Canvas Print</string>
+    <string name="preview_title">Preview: 50mm × 30mm at 200dpi</string>
+    <string name="output_pixels">Output pixels: %1$d x %2$d</string>
+    <string name="print_button_text">Send to Phomemo App</string>
+    <string name="share_chooser_title">Choose app to print label</string>
+    <string name="no_share_target_found">No compatible app found to print this label.</string>
 </resources>
