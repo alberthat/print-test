@@ -224,6 +224,7 @@ private fun LabelEditorScreen(
     }
 
     val transformState = rememberTransformableState { z, _, _ -> zoom = (zoom * z).coerceIn(0.5f, 4f) }
+    val recomposeToken = revision
     val selected = objects.firstOrNull { it.id == selectedId }
     val touch = { revision++ }
 
@@ -313,7 +314,9 @@ private fun LabelEditorScreen(
 
         Spacer(Modifier.height(8.dp))
         if (selected != null) {
-            Text("rev:$revision")
+            if (recomposeToken < 0) {
+                Text("")
+            }
             Text("Selected: ${selected.type}")
             Slider(value = selected.width, onValueChange = { selected.width = it; touch() }, valueRange = 20f..PRINTER_WIDTH_PX.toFloat())
             Slider(value = selected.height, onValueChange = { selected.height = it; touch() }, valueRange = 20f..lengthPx.toFloat())
