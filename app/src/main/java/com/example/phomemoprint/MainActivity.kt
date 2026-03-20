@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +57,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -64,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -90,6 +93,13 @@ data class LabelObject(
     var clipart: String = "★",
     var imageUri: String = "",
 )
+
+private enum class ResizeHandle {
+    TOP_LEFT,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT,
+}
 
 class MainActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(
@@ -192,6 +202,20 @@ private fun LabelEditorScreen(
     var nextId by remember { mutableIntStateOf(1) }
     var zoom by remember { mutableFloatStateOf(1f) }
     var revision by remember { mutableIntStateOf(0) }
+    var resizeMode by remember { mutableStateOf(false) }
+    val fontOptions = remember {
+        listOf(
+            "sans-serif",
+            "serif",
+            "monospace",
+            "sans-serif-condensed",
+            "sans-serif-light",
+            "sans-serif-medium",
+            "sans-serif-smallcaps",
+            "casual",
+            "cursive",
+        )
+    }
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -213,6 +237,7 @@ private fun LabelEditorScreen(
             Button(onClick = { objects += LabelObject(nextId++, ItemType.CLIPART, 30f, 30f, 80f, 80f, clipart = "★") }) { Text("+Clipart") }
             Button(onClick = { objects += LabelObject(nextId++, ItemType.QR, 20f, 20f, 120f, 120f, text = "https://phomemo.com") }) { Text("+QR") }
             Button(onClick = { imagePicker.launch("image/*") }) { Text("+Image") }
+            Button(onClick = { resizeMode = !resizeMode }) { Text(if (resizeMode) "Done Resize" else "Resize Mode") }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -236,10 +261,50 @@ private fun LabelEditorScreen(
                     item = item,
                     docToUi = docToUi,
                     selected = item.id == selectedId,
+                    resizeMode = resizeMode,
                     onSelect = { selectedId = item.id },
                     onDrag = { dx, dy ->
                         item.x = (item.x + dx / docToUi).coerceIn(0f, PRINTER_WIDTH_PX - item.width)
                         item.y = (item.y + dy / docToUi).coerceIn(0f, lengthPx - item.height)
+                        touch()
+                    },
+                    onResize = { handle, dx, dy ->
+                        val aspect = (item.width / item.height).coerceAtLeast(0.1f)
+                        val d = (maxOf(dx, dy) / docToUi)
+                        when (handle) {
+                            ResizeHandle.BOTTOM_RIGHT -> {
+                                val newWidth = (item.width + d).coerceIn(20f, PRINTER_WIDTH_PX - item.x)
+                                item.width = newWidth
+                                item.height = (newWidth / aspect).coerceIn(20f, lengthPx - item.y)
+                            }
+
+                            ResizeHandle.TOP_LEFT -> {
+                                val newWidth = (item.width - d).coerceAtLeast(20f)
+                                val newHeight = (newWidth / aspect).coerceAtLeast(20f)
+                                val newX = (item.x + item.width - newWidth).coerceAtLeast(0f)
+                                val newY = (item.y + item.height - newHeight).coerceAtLeast(0f)
+                                item.width = newWidth
+                                item.height = newHeight
+                                item.x = newX
+                                item.y = newY
+                            }
+
+                            ResizeHandle.TOP_RIGHT -> {
+                                val newWidth = (item.width + d).coerceIn(20f, PRINTER_WIDTH_PX - item.x)
+                                val newHeight = (newWidth / aspect).coerceAtLeast(20f)
+                                item.width = newWidth
+                                item.y = (item.y + item.height - newHeight).coerceAtLeast(0f)
+                                item.height = newHeight
+                            }
+
+                            ResizeHandle.BOTTOM_LEFT -> {
+                                val newWidth = (item.width - d).coerceAtLeast(20f)
+                                val newHeight = (newWidth / aspect).coerceAtLeast(20f)
+                                item.x = (item.x + item.width - newWidth).coerceAtLeast(0f)
+                                item.width = newWidth
+                                item.height = newHeight
+                            }
+                        }
                         touch()
                     },
                 )
@@ -248,14 +313,15 @@ private fun LabelEditorScreen(
 
         Spacer(Modifier.height(8.dp))
         if (selected != null) {
+            Text("rev:$revision")
             Text("Selected: ${selected.type}")
             Slider(value = selected.width, onValueChange = { selected.width = it; touch() }, valueRange = 20f..PRINTER_WIDTH_PX.toFloat())
             Slider(value = selected.height, onValueChange = { selected.height = it; touch() }, valueRange = 20f..lengthPx.toFloat())
             Slider(value = selected.rotation, onValueChange = { selected.rotation = it; touch() }, valueRange = -180f..180f)
             if (selected.type == ItemType.TEXT) {
                 OutlinedTextField(value = selected.text, onValueChange = { selected.text = it; touch() }, label = { Text("Text") })
-                Row {
-                    listOf("Sans", "Serif", "Mono").forEach { f ->
+                LazyRow {
+                    items(fontOptions) { f ->
                         Button(onClick = { selected.font = f; touch() }, modifier = Modifier.padding(end = 6.dp)) { Text(f) }
                     }
                 }
@@ -294,8 +360,10 @@ private fun LabelObjectView(
     item: LabelObject,
     docToUi: Float,
     selected: Boolean,
+    resizeMode: Boolean,
     onSelect: () -> Unit,
     onDrag: (Float, Float) -> Unit,
+    onResize: (ResizeHandle, Float, Float) -> Unit,
 ) {
     val xDp = with(LocalDensity.current) { (item.x * docToUi).toDp() }
     val yDp = with(LocalDensity.current) { (item.y * docToUi).toDp() }
@@ -316,21 +384,56 @@ private fun LabelObjectView(
                         onDrag(drag.x, drag.y)
                     },
                 )
+            }
+            .pointerInput(item.id, selected) {
+                detectTapGestures {
+                    onSelect()
+                }
             },
         contentAlignment = Alignment.Center,
     ) {
         when (item.type) {
-            ItemType.TEXT -> Text(item.text, fontFamily = when (item.font) {
-                "Serif" -> FontFamily.Serif
-                "Mono" -> FontFamily.Monospace
-                else -> FontFamily.SansSerif
-            })
+            ItemType.TEXT -> Text(
+                item.text,
+                modifier = Modifier.fillMaxSize().padding(vertical = 5.dp, horizontal = 2.dp),
+                fontFamily = when (item.font.lowercase()) {
+                    "serif" -> FontFamily.Serif
+                    "monospace" -> FontFamily.Monospace
+                    "cursive" -> FontFamily.Cursive
+                    else -> FontFamily.SansSerif
+                },
+            )
 
             ItemType.CLIPART -> Text(item.clipart)
             ItemType.QR -> QrPreview(item.text)
             ItemType.IMAGE -> Text("IMG")
         }
+
+        if (selected && resizeMode) {
+            ResizeHandleDot(Modifier.align(Alignment.TopStart), onDrag = { dx, dy -> onResize(ResizeHandle.TOP_LEFT, dx, dy) })
+            ResizeHandleDot(Modifier.align(Alignment.TopEnd), onDrag = { dx, dy -> onResize(ResizeHandle.TOP_RIGHT, dx, dy) })
+            ResizeHandleDot(Modifier.align(Alignment.BottomStart), onDrag = { dx, dy -> onResize(ResizeHandle.BOTTOM_LEFT, dx, dy) })
+            ResizeHandleDot(Modifier.align(Alignment.BottomEnd), onDrag = { dx, dy -> onResize(ResizeHandle.BOTTOM_RIGHT, dx, dy) })
+        }
     }
+}
+
+@Composable
+private fun ResizeHandleDot(
+    modifier: Modifier = Modifier,
+    onDrag: (Float, Float) -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .size(12.dp)
+            .background(ComposeColor.Blue)
+            .pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    onDrag(dragAmount.x, dragAmount.y)
+                }
+            },
+    )
 }
 
 @Composable
@@ -369,15 +472,13 @@ private fun renderLabelBitmap(lengthMm: Float, objects: List<LabelObject>): Bitm
             ItemType.TEXT -> {
                 val paint = Paint().apply {
                     color = Color.BLACK
-                    textSize = obj.height * 0.6f
+                    textSize = fitTextSizeForBox(this, obj.text, obj.width, obj.height - 10f)
                     isAntiAlias = true
-                    typeface = when (obj.font) {
-                        "Serif" -> android.graphics.Typeface.SERIF
-                        "Mono" -> android.graphics.Typeface.MONOSPACE
-                        else -> android.graphics.Typeface.SANS_SERIF
-                    }
+                    typeface = android.graphics.Typeface.create(obj.font, android.graphics.Typeface.NORMAL)
                 }
-                canvas.drawText(obj.text, obj.x, obj.y + obj.height * 0.8f, paint)
+                val metrics = paint.fontMetrics
+                val baseline = obj.y + (obj.height - 10f - (metrics.bottom - metrics.top)) / 2f - metrics.top + 5f
+                canvas.drawText(obj.text, obj.x, baseline, paint)
             }
 
             ItemType.CLIPART -> {
@@ -433,6 +534,24 @@ private fun buildSvg(lengthMm: Float, objects: List<LabelObject>): String {
 }
 
 private fun mmToPx(mm: Float, dpi: Int): Int = ((mm / 25.4f) * dpi).roundToInt()
+
+private fun fitTextSizeForBox(paint: Paint, text: String, width: Float, height: Float): Float {
+    var low = 4f
+    var high = 512f
+    repeat(12) {
+        val mid = (low + high) / 2f
+        paint.textSize = mid
+        val textWidth = paint.measureText(text)
+        val fm = paint.fontMetrics
+        val textHeight = fm.bottom - fm.top
+        if (textWidth <= width && textHeight <= height) {
+            low = mid
+        } else {
+            high = mid
+        }
+    }
+    return low
+}
 
 private fun escPosRasterBands(bitmap: Bitmap, bandHeight: Int = 48): List<ByteArray> {
     val width = bitmap.width
