@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Phomemo Canvas Print</string>
+    <string name="preview_title">Preview: 50mm × 30mm at 200dpi</string>
+    <string name="output_pixels">Output pixels: %1$d x %2$d</string>
+    <string name="native_print_hint">Native Bluetooth print (no external app)</string>
+    <string name="print_button_native">Print to Phomemo T02</string>
+    <string name="permissions_required">Bluetooth permission is required to print.</string>
+    <string name="bluetooth_not_supported">Bluetooth is not supported on this device.</string>
+    <string name="enable_bluetooth">Enable Bluetooth and pair the Phomemo T02 first.</string>
+    <string name="no_printer_found">No paired Phomemo/T02 printer found.</string>
+    <string name="print_sent">Print job sent to %1$s.</string>
+    <string name="print_failed">Native print failed: %1$s</string>
+</resources>
