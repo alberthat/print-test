@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
 
         return FileProvider.getUriForFile(
             this,
-            "${BuildConfig.APPLICATION_ID}.fileprovider",
+            "$packageName.fileprovider",
             outFile,
         )
     }
